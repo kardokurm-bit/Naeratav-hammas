@@ -14,7 +14,12 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="et">
-      <body className="antialiased">{children}</body>
+      <body className="flex h-dvh flex-col antialiased">
+        <div className="min-h-0 flex-1">{children}</div>
+        <footer className="border-t border-slate-200 bg-white px-4 py-2 text-center text-xs text-slate-500">
+          © 2026 Naeratav Hammas. Built with Claude Code
+        </footer>
+      </body>
     </html>
   );
 }

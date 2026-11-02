@@ -201,7 +201,7 @@ export function ChatApp() {
   const empty = messages.length === 0 && !sending;
 
   return (
-    <div className="flex h-dvh bg-white text-slate-800">
+    <div className="flex h-full bg-white text-slate-800">
       {/* Sidebar */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-30 bg-slate-900/40 md:hidden" onClick={() => setSidebarOpen(false)} />
