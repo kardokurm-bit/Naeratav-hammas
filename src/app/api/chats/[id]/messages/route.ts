@@ -5,6 +5,8 @@ import { sendMessage } from "@/lib/mock-ai";
 
 export const dynamic = "force-dynamic";
 
+const DEFAULT_TITLE = "Uus vestlus";
+
 type Ctx = { params: Promise<{ id: string }> };
 
 export function POST(req: Request, { params }: Ctx) {
@@ -24,11 +26,20 @@ export function POST(req: Request, { params }: Ctx) {
       data: { sessionId: id, role: "assistant", content: answer },
     });
 
-    const isFirst = (await db.message.count({ where: { sessionId: id, role: "user" } })) === 1;
-    const updated = await db.chatSession.update({
-      where: { id },
-      data: isFirst ? { title: content.length > 40 ? content.slice(0, 40) + "…" : content } : { updatedAt: new Date() },
+    // Name the chat after its first message. Checking for the default title (instead of
+    // counting messages) stays correct when two first messages arrive at the same time:
+    // the conditional update below lets exactly one of them set the title.
+    const firstUserMessage = await db.message.findFirst({
+      where: { sessionId: id, role: "user" },
+      orderBy: { createdAt: "asc" },
     });
+    const source = firstUserMessage?.content.split("\n📎")[0].trim() || content;
+    const title = source.length > 40 ? source.slice(0, 40) + "…" : source;
+    await db.chatSession.updateMany({
+      where: { id, title: DEFAULT_TITLE },
+      data: { title },
+    });
+    const updated = await db.chatSession.update({ where: { id }, data: { updatedAt: new Date() } });
 
     return NextResponse.json({ userMessage, assistantMessage, chat: updated });
   });
@@ -40,7 +51,7 @@ export function DELETE(_req: Request, { params }: Ctx) {
     const { id } = await params;
     const db = getDb();
     await db.message.deleteMany({ where: { sessionId: id } });
-    await db.chatSession.updateMany({ where: { id }, data: { title: "Uus vestlus" } });
+    await db.chatSession.updateMany({ where: { id }, data: { title: DEFAULT_TITLE } });
     return NextResponse.json({ ok: true });
   });
 }
