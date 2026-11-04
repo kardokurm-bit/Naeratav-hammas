@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getDb } from "@/lib/db";
 import { badRequest, handle, notFound } from "@/lib/api-helpers";
 import { sendMessage } from "@/lib/mock-ai";
+import { findOwnedChat } from "@/lib/owner";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,7 @@ const DEFAULT_TITLE = "Uus vestlus";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export function POST(req: Request, { params }: Ctx) {
+export function POST(req: NextRequest, { params }: Ctx) {
   return handle(async () => {
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
@@ -17,7 +18,7 @@ export function POST(req: Request, { params }: Ctx) {
     if (!content) return badRequest("Tühja sõnumit ei saa saata.");
 
     const db = getDb();
-    const chat = await db.chatSession.findUnique({ where: { id } });
+    const chat = await findOwnedChat(req, id);
     if (!chat) return notFound();
 
     const userMessage = await db.message.create({ data: { sessionId: id, role: "user", content } });
@@ -46,9 +47,10 @@ export function POST(req: Request, { params }: Ctx) {
 }
 
 /** Clears all messages of the chat ("Tühjenda vestlus"). */
-export function DELETE(_req: Request, { params }: Ctx) {
+export function DELETE(req: NextRequest, { params }: Ctx) {
   return handle(async () => {
     const { id } = await params;
+    if (!(await findOwnedChat(req, id))) return notFound();
     const db = getDb();
     await db.message.deleteMany({ where: { sessionId: id } });
     await db.chatSession.updateMany({ where: { id }, data: { title: DEFAULT_TITLE } });
